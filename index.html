@@ -437,7 +437,7 @@ async function loadItems() {
     const data = await notionAPI(`databases/${DB_ID}/query`, 'POST', {
       page_size: 100,
     });
-    if (data.object === 'error') throw new Error(data.message || data.code);
+    if (data.object === 'error') throw new Error(`Notion API error: ${data.message || data.code}`);
     items = (data.results || []).map(page => {
       try { return parseItem(page); } catch(e) { console.error('parseItem error', page, e); return null; }
     }).filter(i => i && i.name);
@@ -445,7 +445,9 @@ async function loadItems() {
     renderAlerts();
   } catch(e) {
     document.getElementById('items-container').innerHTML =
-      `<div class="empty-state">❌ 読み込みに失敗しました<br><small style="color:#9ca3af">${e.message}</small></div>`;
+      `<div class="empty-state">❌ 読み込みに失敗しました<br><br>
+      <div style="background:#f3f4f6;padding:12px;border-radius:8px;font-size:0.75rem;text-align:left;color:#374151;word-break:break-all;">${esc(e.message)}</div>
+      <br><button onclick="loadItems()" style="padding:8px 20px;background:#667eea;color:white;border:none;border-radius:8px;font-size:0.85rem;cursor:pointer;">再試行</button></div>`;
   }
 }
 
