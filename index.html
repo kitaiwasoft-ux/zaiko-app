@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>📦 マイ在庫ダッシュボード</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, 'Hiragino Sans', 'Yu Gothic UI', sans-serif;
+  background: #f0f4f8;
+  min-height: 100dvh;
+  padding-bottom: 90px;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* ===== HEADER ===== */
+#header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 12px 16px 10px;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+}
+.header-top { display: flex; align-items: center; justify-content: space-between; }
+.header-title { font-size: 1.05rem; font-weight: 700; }
+.header-date { font-size: 0.72rem; opacity: 0.8; margin-top: 2px; }
+.icon-btn {
+  background: rgba(255,255,255,0.22);
+  border: none; color: white;
+  width: 38px; height: 38px;
+  border-radius: 50%;
+  font-size: 1rem; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: transform 0.1s;
+}
+.icon-btn:active { transform: scale(0.88); }
+
+/* ===== ALERT ===== */
+#alert-banner {
+  display: none;
+  margin: 10px 12px 0;
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+#alert-banner.has-red { background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; }
+#alert-banner.has-todoc { background: #fff7ed; border: 1px solid #fed7aa; color: #c2410c; }
+
+/* ===== VIEW TOGGLE ===== */
+.view-toggle {
+  display: flex;
+  margin: 10px 12px 0;
+  background: white;
+  border-radius: 12px;
+  padding: 4px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+}
+.view-btn {
+  flex: 1; padding: 8px 4px;
+  border: none; border-radius: 9px;
+  font-size: 0.82rem; font-weight: 700;
+  cursor: pointer; background: transparent; color: #888;
+  transition: all 0.2s; font-family: inherit;
+}
+.view-btn.active { background: #667eea; color: white; box-shadow: 0 2px 6px rgba(102,126,234,0.4); }
+
+/* ===== STORE TABS ===== */
+#store-tabs {
+  display: flex;
+  gap: 6px;
+  padding: 10px 12px 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+#store-tabs::-webkit-scrollbar { display: none; }
+.store-tab {
+  flex-shrink: 0;
+  padding: 7px 14px;
+  border: none; border-radius: 20px;
+  font-size: 0.78rem; font-weight: 700;
+  cursor: pointer; background: white; color: #666;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  transition: all 0.2s; font-family: inherit;
+}
+.store-tab.active { background: #667eea; color: white; box-shadow: 0 2px 6px rgba(102,126,234,0.35); }
+
+/* ===== ITEMS ===== */
+#items-container { padding: 10px 12px 0; }
+
+.section-heading {
+  font-size: 0.72rem; font-weight: 700; color: #9ca3af;
+  letter-spacing: 0.5px; text-transform: uppercase;
+  margin: 14px 0 6px;
+}
+.section-heading:first-child { margin-top: 0; }
+
+.item-card {
+  background: white;
+  border-radius: 14px;
+  padding: 12px 14px;
+  margin-bottom: 8px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+  display: flex; align-items: center; gap: 12px;
+  cursor: pointer;
+  border-left: 4px solid #e5e7eb;
+  transition: transform 0.1s, opacity 0.2s;
+  position: relative;
+}
+.item-card:active { transform: scale(0.98); }
+.item-card.skip { opacity: 0.45; }
+.item-card.prio-red    { border-left-color: #ef4444; }
+.item-card.prio-orange { border-left-color: #f97316; }
+.item-card.prio-yellow { border-left-color: #eab308; }
+.item-card.prio-gray   { border-left-color: #d1d5db; }
+
+.item-emoji { font-size: 1.4rem; flex-shrink: 0; }
+.item-info { flex: 1; min-width: 0; }
+.item-name { font-size: 0.92rem; font-weight: 700; color: #1f2937; }
+.skip-badge { font-size: 0.65rem; color: #9ca3af; font-weight: 600; margin-left: 4px; }
+.item-sub { font-size: 0.72rem; color: #6b7280; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.store-badge {
+  flex-shrink: 0; padding: 3px 9px;
+  border-radius: 8px; font-size: 0.68rem; font-weight: 700;
+}
+.badge-セコマ       { background: #dcfce7; color: #15803d; }
+.badge-マリンストア { background: #dbeafe; color: #1d4ed8; }
+.badge-トドック     { background: #ffedd5; color: #c2410c; }
+.badge-イオン       { background: #fef9c3; color: #a16207; }
+.badge-Amazon系     { background: #f3f4f6; color: #374151; }
+
+.empty-state {
+  text-align: center; padding: 50px 20px;
+  color: #9ca3af; font-size: 0.9rem; line-height: 1.7;
+}
+
+/* ===== LOADING ===== */
+#loading {
+  text-align: center; padding: 50px 20px; color: #9ca3af;
+}
+.spinner {
+  width: 32px; height: 32px;
+  border: 3px solid #e5e7eb; border-top-color: #667eea;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin: 0 auto 12px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ===== FAB ===== */
+#fab {
+  position: fixed; bottom: 24px; right: 20px;
+  width: 56px; height: 56px;
+  background: #667eea; color: white;
+  border: none; border-radius: 50%; font-size: 1.7rem;
+  cursor: pointer; z-index: 40;
+  box-shadow: 0 4px 16px rgba(102,126,234,0.55);
+  display: flex; align-items: center; justify-content: center;
+  transition: transform 0.1s;
+}
+#fab:active { transform: scale(0.9); }
+
+/* ===== OVERLAY / MODAL ===== */
+.overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 60;
+  display: flex; align-items: flex-end;
+}
+.overlay.hidden { display: none; }
+.modal {
+  background: white;
+  border-radius: 20px 20px 0 0;
+  width: 100%; max-height: 92dvh;
+  overflow-y: auto;
+  padding: 0 16px 24px;
+}
+.modal-drag {
+  width: 36px; height: 4px;
+  background: #e5e7eb; border-radius: 2px;
+  margin: 12px auto 16px;
+}
+.modal-title { font-size: 1rem; font-weight: 700; color: #1f2937; margin-bottom: 16px; }
+
+.field-group { margin-bottom: 14px; }
+.field-label {
+  font-size: 0.72rem; font-weight: 700; color: #6b7280;
+  letter-spacing: 0.3px; text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.field-input {
+  width: 100%; border: 1.5px solid #e5e7eb; border-radius: 10px;
+  padding: 10px 12px; font-size: 0.9rem; font-family: inherit;
+  outline: none; transition: border-color 0.15s;
+  user-select: text; -webkit-user-select: text;
+}
+.field-input:focus { border-color: #667eea; }
+
+/* Priority buttons */
+.prio-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.prio-btn {
+  padding: 9px 6px; border: 1.5px solid #e5e7eb; border-radius: 10px;
+  font-size: 0.78rem; font-weight: 700; cursor: pointer;
+  background: white; color: #555; text-align: center;
+  transition: all 0.15s; font-family: inherit;
+}
+.prio-btn.sel-red    { border-color: #ef4444; background: #fef2f2; color: #dc2626; }
+.prio-btn.sel-orange { border-color: #f97316; background: #fff7ed; color: #ea580c; }
+.prio-btn.sel-yellow { border-color: #eab308; background: #fefce8; color: #ca8a04; }
+.prio-btn.sel-gray   { border-color: #9ca3af; background: #f9fafb; color: #4b5563; }
+
+/* Store buttons */
+.store-grid-modal { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.store-btn-modal {
+  padding: 9px 4px; border: 1.5px solid #e5e7eb; border-radius: 10px;
+  font-size: 0.75rem; font-weight: 700; cursor: pointer;
+  background: white; color: #555; text-align: center;
+  transition: all 0.15s; font-family: inherit;
+}
+.store-btn-modal.selected { border-color: #667eea; background: #ede9fe; color: #4f46e5; }
+
+/* Category */
+.cat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.cat-btn {
+  padding: 8px 4px; border: 1.5px solid #e5e7eb; border-radius: 10px;
+  font-size: 0.72rem; font-weight: 700; cursor: pointer;
+  background: white; color: #555; text-align: center;
+  transition: all 0.15s; font-family: inherit;
+}
+.cat-btn.selected { border-color: #667eea; background: #ede9fe; color: #4f46e5; }
+
+/* Checkbox row */
+.check-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 11px 12px; background: #f9fafb; border-radius: 10px;
+  cursor: pointer; font-size: 0.87rem; color: #374151;
+  border: 1.5px solid #e5e7eb;
+}
+.check-row input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; accent-color: #667eea; }
+
+/* Modal actions */
+.modal-actions { display: flex; gap: 8px; margin-top: 18px; }
+.btn-cancel {
+  padding: 12px 16px; background: #f3f4f6; color: #555;
+  border: none; border-radius: 12px; font-size: 0.88rem; font-weight: 700;
+  cursor: pointer; font-family: inherit;
+}
+.btn-primary {
+  flex: 1; padding: 12px; background: #667eea; color: white;
+  border: none; border-radius: 12px; font-size: 0.88rem; font-weight: 700;
+  cursor: pointer; font-family: inherit;
+}
+.btn-bought {
+  flex: 1; padding: 12px; background: #10b981; color: white;
+  border: none; border-radius: 12px; font-size: 0.88rem; font-weight: 700;
+  cursor: pointer; font-family: inherit;
+}
+.btn-primary:disabled, .btn-bought:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Divider */
+.modal-divider { height: 1px; background: #f3f4f6; margin: 16px 0; }
+
+/* Toast */
+.toast {
+  position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%);
+  background: #1f2937; color: white; padding: 10px 22px;
+  border-radius: 20px; font-size: 0.84rem; z-index: 999;
+  white-space: nowrap; pointer-events: none;
+  animation: fadeInOut 2.2s ease forwards;
+}
+@keyframes fadeInOut {
+  0%   { opacity: 0; transform: translateX(-50%) translateY(8px); }
+  15%  { opacity: 1; transform: translateX(-50%) translateY(0); }
+  75%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div id="header">
+  <div class="header-top">
+    <div>
+      <div class="header-title">📦 マイ在庫ダッシュボード</div>
+      <div class="header-date" id="header-date"></div>
+    </div>
+    <button class="icon-btn" onclick="loadItems()" title="同期">🔄</button>
+  </div>
+</div>
+
+<!-- Alert Banner -->
+<div id="alert-banner"></div>
+
+<!-- View Toggle -->
+<div class="view-toggle">
+  <button class="view-btn active" id="vbtn-shop" onclick="setView('shop')">🛒 買い物リスト</button>
+  <button class="view-btn" id="vbtn-all" onclick="setView('all')">📋 全品目一覧</button>
+</div>
+
+<!-- Store Tabs -->
+<div id="store-tabs">
+  <button class="store-tab active" data-store="all" onclick="setStore('all')">すべて</button>
+  <button class="store-tab" data-store="セコマ" onclick="setStore('セコマ')">🏪 セコマ</button>
+  <button class="store-tab" data-store="マリンストア" onclick="setStore('マリンストア')">🐟 マリン</button>
+  <button class="store-tab" data-store="トドック" onclick="setStore('トドック')">🚚 トドック</button>
+  <button class="store-tab" data-store="イオン" onclick="setStore('イオン')">🛍️ イオン</button>
+  <button class="store-tab" data-store="Amazon系" onclick="setStore('Amazon系')">📦 Amazon</button>
+</div>
+
+<!-- Items -->
+<div id="items-container">
+  <div id="loading"><div class="spinner"></div>読み込み中...</div>
+</div>
+
+<!-- FAB -->
+<button id="fab" onclick="openAddModal()">＋</button>
+
+<!-- Edit/Add Modal -->
+<div class="overlay hidden" id="modal-overlay">
+  <div class="modal">
+    <div class="modal-drag"></div>
+    <div class="modal-title" id="modal-title">品目を追加</div>
+
+    <div class="field-group">
+      <div class="field-label">アイテム名</div>
+      <input class="field-input" type="text" id="f-name" placeholder="例: トイレットペーパー" />
+    </div>
+
+    <div class="field-group">
+      <div class="field-label">残量ステータス</div>
+      <div class="prio-grid">
+        <button class="prio-btn" data-prio="🔴 今すぐ欲しい" onclick="selectPrio(this)">🔴 今すぐ欲しい</button>
+        <button class="prio-btn" data-prio="🟠 そろそろなくなりそう" onclick="selectPrio(this)">🟠 そろそろ</button>
+        <button class="prio-btn" data-prio="🟡 買えたら買いたい" onclick="selectPrio(this)">🟡 買えたら</button>
+        <button class="prio-btn" data-prio="⚪ まだ買わなくていい" onclick="selectPrio(this)">⚪ まだOK</button>
+      </div>
+    </div>
+
+    <div class="field-group">
+      <div class="field-label">購入先のお店</div>
+      <div class="store-grid-modal">
+        <button class="store-btn-modal" data-store="セコマ" onclick="selectStoreMdl(this)">セコマ</button>
+        <button class="store-btn-modal" data-store="マリンストア" onclick="selectStoreMdl(this)">マリン</button>
+        <button class="store-btn-modal" data-store="トドック" onclick="selectStoreMdl(this)">トドック</button>
+        <button class="store-btn-modal" data-store="イオン" onclick="selectStoreMdl(this)">イオン</button>
+        <button class="store-btn-modal" data-store="Amazon系" onclick="selectStoreMdl(this)">Amazon</button>
+      </div>
+    </div>
+
+    <div class="field-group">
+      <div class="field-label">カテゴリ</div>
+      <div class="cat-grid">
+        <button class="cat-btn" data-cat="食品" onclick="selectCat(this)">食品</button>
+        <button class="cat-btn" data-cat="製菓" onclick="selectCat(this)">製菓</button>
+        <button class="cat-btn" data-cat="飲み物" onclick="selectCat(this)">飲み物</button>
+        <button class="cat-btn" data-cat="日用品" onclick="selectCat(this)">日用品</button>
+      </div>
+    </div>
+
+    <div class="field-group">
+      <div class="field-label">保管場所</div>
+      <input class="field-input" type="text" id="f-location" placeholder="例: 洗面台下・玄関クローゼット" />
+    </div>
+
+    <div class="field-group">
+      <div class="field-label">消費ペース（日）</div>
+      <input class="field-input" type="number" id="f-pace" placeholder="例: 30（約1ヶ月で使い切る場合）" min="1" />
+    </div>
+
+    <div class="field-group">
+      <div class="field-label">メモ</div>
+      <input class="field-input" type="text" id="f-memo" placeholder="例: パンパース Mサイズ・まとめ買い推奨" />
+    </div>
+
+    <div class="field-group">
+      <label class="check-row" for="f-skip">
+        <input type="checkbox" id="f-skip" />
+        <span>当分買わない（一時停止）</span>
+      </label>
+    </div>
+
+    <div class="modal-actions" id="modal-actions"></div>
+  </div>
+</div>
+
+<script>
+const DB_ID = '44ec4902-5021-48b0-91d0-b032a6b9c865';
+const PROXY = '/api/notion';
+
+let items = [];
+let view = 'shop';
+let activeStore = 'all';
+let editCtx = null;
+let modalPrio = '';
+let modalStore = '';
+let modalCat = '';
+
+/* ===== API ===== */
+async function notionAPI(path, method = 'GET', body = null) {
+  const res = await fetch(PROXY, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ notionPath: path, notionMethod: method, notionBody: body }),
+  });
+  return res.json();
+}
+
+function parseItem(page) {
+  const p = page.properties;
+  return {
+    id: page.id,
+    name: p.アイテム?.title?.[0]?.plain_text || '',
+    store: p.お店?.select?.name || '',
+    category: p.カテゴリ?.select?.name || '',
+    priority: p.優先度?.select?.name || '⚪ まだ買わなくていい',
+    lastBought: p.最終購入日?.date?.start || null,
+    location: p.保管場所?.rich_text?.[0]?.plain_text || '',
+    pace: p['消費ペース（日）']?.number || null,
+    memo: p.メモ?.rich_text?.[0]?.plain_text || '',
+    skip: p['当分買わない']?.checkbox || false,
+  };
+}
+
+/* ===== LOAD ===== */
+async function loadItems() {
+  document.getElementById('items-container').innerHTML =
+    '<div id="loading"><div class="spinner"></div>読み込み中...</div>';
+  try {
+    const data = await notionAPI(`databases/${DB_ID}/query`, 'POST', {
+      page_size: 100,
+    });
+    items = (data.results || []).map(parseItem).filter(i => i.name);
+    renderItems();
+    renderAlerts();
+  } catch(e) {
+    document.getElementById('items-container').innerHTML =
+      `<div class="empty-state">❌ 読み込みに失敗しました<br><small style="color:#9ca3af">${e.message}</small></div>`;
+  }
+}
+
+/* ===== PRIORITY UTILS ===== */
+const PRIO_ORDER = {
+  '🔴 今すぐ欲しい': 0,
+  '🟠 そろそろなくなりそう': 1,
+  '🟡 買えたら買いたい': 2,
+  '⚪ まだ買わなくていい': 3,
+};
+
+function prioClass(p) {
+  if (p.startsWith('🔴')) return 'prio-red';
+  if (p.startsWith('🟠')) return 'prio-orange';
+  if (p.startsWith('🟡')) return 'prio-yellow';
+  return 'prio-gray';
+}
+function prioEmoji(p) {
+  if (p.startsWith('🔴')) return '🔴';
+  if (p.startsWith('🟠')) return '🟠';
+  if (p.startsWith('🟡')) return '🟡';
+  return '✅';
+}
+function needsBuying(item) {
+  return !item.skip && item.priority !== '⚪ まだ買わなくていい';
+}
+
+/* ===== RENDER ===== */
+function renderItems() {
+  const container = document.getElementById('items-container');
+
+  let list = [...items];
+  if (activeStore !== 'all') list = list.filter(i => i.store === activeStore);
+  if (view === 'shop') list = list.filter(i => needsBuying(i));
+
+  list.sort((a, b) => (PRIO_ORDER[a.priority] ?? 3) - (PRIO_ORDER[b.priority] ?? 3));
+
+  if (!list.length) {
+    container.innerHTML = `<div class="empty-state">${
+      view === 'shop' ? '🎉 買うものはありません！' : '品目が登録されていません<br><small>右下の＋から追加できます</small>'
+    }</div>`;
+    return;
+  }
+
+  // Group by priority in shop view, by category in all view
+  if (view === 'shop') {
+    container.innerHTML = list.map(item => cardHTML(item)).join('');
+  } else {
+    const byCategory = {};
+    list.forEach(item => {
+      const key = item.category || 'その他';
+      if (!byCategory[key]) byCategory[key] = [];
+      byCategory[key].push(item);
+    });
+    const catOrder = ['食品', '製菓', '飲み物', '日用品', 'その他'];
+    const sorted = catOrder.filter(k => byCategory[k]);
+    container.innerHTML = sorted.map(cat =>
+      `<div class="section-heading">${cat}</div>${byCategory[cat].map(i => cardHTML(i)).join('')}`
+    ).join('');
+  }
+}
+
+function cardHTML(item) {
+  const sub = [];
+  if (item.location) sub.push(`📍 ${item.location}`);
+  if (item.pace) sub.push(`🔁 ${item.pace}日`);
+  if (item.memo) sub.push(item.memo);
+  const lastBought = item.lastBought
+    ? `最終購入: ${item.lastBought.replace(/-/g, '/')}`
+    : '';
+  const storeBadge = item.store
+    ? `<div class="store-badge badge-${item.store}">${esc(item.store)}</div>`
+    : '';
+  return `<div class="item-card ${prioClass(item.priority)} ${item.skip ? 'skip' : ''}" onclick="openEditModal('${item.id}')">
+    <div class="item-emoji">${prioEmoji(item.priority)}</div>
+    <div class="item-info">
+      <div class="item-name">${esc(item.name)}${item.skip ? '<span class="skip-badge">停止中</span>' : ''}</div>
+      ${sub.length ? `<div class="item-sub">${sub.map(esc).join(' · ')}</div>` : ''}
+      ${lastBought ? `<div class="item-sub" style="color:#9ca3af">${esc(lastBought)}</div>` : ''}
+    </div>
+    ${storeBadge}
+  </div>`;
+}
+
+/* ===== ALERTS ===== */
+function renderAlerts() {
+  const banner = document.getElementById('alert-banner');
+  const msgs = [];
+  const today = new Date();
+
+  // Monday → トドック warning
+  if (today.getDay() === 1) {
+    const todocNeeds = items.filter(i => i.store === 'トドック' && needsBuying(i));
+    if (todocNeeds.length) {
+      msgs.push(`⚠️ 今日は月曜日！トドック締め切りは水曜日です。要確認: ${todocNeeds.map(i => i.name).join('・')}`);
+    }
+  }
+
+  // 🔴 items
+  const red = items.filter(i => i.priority.startsWith('🔴') && !i.skip);
+  if (red.length) {
+    msgs.push(`🔴 今すぐ必要: ${red.map(i => i.name).join('・')}`);
+  }
+
+  if (msgs.length) {
+    banner.style.display = 'block';
+    banner.className = msgs[0].startsWith('⚠️') ? 'has-todoc' : 'has-red';
+    banner.innerHTML = msgs.map(m => `<div>${esc(m)}</div>`).join('<hr style="border:none;border-top:1px solid #fecaca;margin:5px 0">');
+  } else {
+    banner.style.display = 'none';
+  }
+}
+
+/* ===== VIEW & STORE ===== */
+function setView(v) {
+  view = v;
+  document.getElementById('vbtn-shop').classList.toggle('active', v === 'shop');
+  document.getElementById('vbtn-all').classList.toggle('active', v === 'all');
+  document.getElementById('store-tabs').style.display = v === 'shop' ? 'flex' : 'none';
+  renderItems();
+}
+
+function setStore(store) {
+  activeStore = store;
+  document.querySelectorAll('.store-tab').forEach(t =>
+    t.classList.toggle('active', t.dataset.store === store));
+  renderItems();
+}
+
+/* ===== MODAL ===== */
+function openAddModal() {
+  editCtx = null;
+  document.getElementById('modal-title').textContent = '品目を追加';
+  clearModal();
+  document.getElementById('modal-actions').innerHTML = `
+    <button class="btn-cancel" onclick="closeModal()">キャンセル</button>
+    <button class="btn-primary" id="msave" onclick="saveItem()">追加する</button>
+  `;
+  document.getElementById('modal-overlay').classList.remove('hidden');
+  setTimeout(() => document.getElementById('f-name').focus(), 150);
+}
+
+function openEditModal(id) {
+  const item = items.find(i => i.id === id);
+  if (!item) return;
+  editCtx = { id };
+  document.getElementById('modal-title').textContent = `「${item.name}」を編集`;
+
+  document.getElementById('f-name').value = item.name;
+  document.getElementById('f-location').value = item.location;
+  document.getElementById('f-pace').value = item.pace || '';
+  document.getElementById('f-memo').value = item.memo;
+  document.getElementById('f-skip').checked = item.skip;
+
+  // Priority
+  modalPrio = item.priority;
+  document.querySelectorAll('.prio-btn').forEach(b => {
+    b.className = 'prio-btn';
+    if (b.dataset.prio === item.priority) applyPrioStyle(b, item.priority);
+  });
+
+  // Store
+  modalStore = item.store;
+  document.querySelectorAll('.store-btn-modal').forEach(b =>
+    b.classList.toggle('selected', b.dataset.store === item.store));
+
+  // Category
+  modalCat = item.category;
+  document.querySelectorAll('.cat-btn').forEach(b =>
+    b.classList.toggle('selected', b.dataset.cat === item.category));
+
+  document.getElementById('modal-actions').innerHTML = `
+    <button class="btn-cancel" onclick="closeModal()">×</button>
+    <button class="btn-bought" id="mbought" onclick="markBought('${id}')">✅ 買った！</button>
+    <button class="btn-primary" id="msave" onclick="saveItem()">保存</button>
+  `;
+  document.getElementById('modal-overlay').classList.remove('hidden');
+}
+
+function clearModal() {
+  modalPrio = '⚪ まだ買わなくていい';
+  modalStore = '';
+  modalCat = '';
+  document.getElementById('f-name').value = '';
+  document.getElementById('f-location').value = '';
+  document.getElementById('f-pace').value = '';
+  document.getElementById('f-memo').value = '';
+  document.getElementById('f-skip').checked = false;
+  document.querySelectorAll('.prio-btn').forEach(b => {
+    b.className = 'prio-btn';
+    if (b.dataset.prio === '⚪ まだ買わなくていい') b.classList.add('sel-gray');
+  });
+  document.querySelectorAll('.store-btn-modal').forEach(b => b.classList.remove('selected'));
+  document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('selected'));
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').classList.add('hidden');
+}
+
+function applyPrioStyle(btn, prio) {
+  if (prio.startsWith('🔴')) btn.classList.add('sel-red');
+  else if (prio.startsWith('🟠')) btn.classList.add('sel-orange');
+  else if (prio.startsWith('🟡')) btn.classList.add('sel-yellow');
+  else btn.classList.add('sel-gray');
+}
+
+function selectPrio(btn) {
+  modalPrio = btn.dataset.prio;
+  document.querySelectorAll('.prio-btn').forEach(b => {
+    b.className = 'prio-btn';
+  });
+  applyPrioStyle(btn, modalPrio);
+}
+
+function selectStoreMdl(btn) {
+  modalStore = btn.dataset.store;
+  document.querySelectorAll('.store-btn-modal').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+}
+
+function selectCat(btn) {
+  modalCat = btn.dataset.cat;
+  document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+}
+
+function buildProps() {
+  const name = document.getElementById('f-name').value.trim();
+  const location = document.getElementById('f-location').value.trim();
+  const pace = parseInt(document.getElementById('f-pace').value) || null;
+  const memo = document.getElementById('f-memo').value.trim();
+  const skip = document.getElementById('f-skip').checked;
+
+  const props = {
+    'アイテム': { title: [{ text: { content: name } }] },
+    '優先度': modalPrio ? { select: { name: modalPrio } } : { select: null },
+    '当分買わない': { checkbox: skip },
+    '保管場所': { rich_text: location ? [{ text: { content: location } }] : [] },
+    'メモ': { rich_text: memo ? [{ text: { content: memo } }] : [] },
+  };
+  if (modalStore) props['お店'] = { select: { name: modalStore } };
+  if (modalCat) props['カテゴリ'] = { select: { name: modalCat } };
+  if (pace) props['消費ペース（日）'] = { number: pace };
+  return props;
+}
+
+async function saveItem() {
+  const name = document.getElementById('f-name').value.trim();
+  if (!name) { alert('アイテム名を入力してください'); return; }
+
+  const btn = document.getElementById('msave');
+  btn.disabled = true; btn.textContent = '保存中...';
+
+  try {
+    const props = buildProps();
+    if (editCtx) {
+      await notionAPI(`pages/${editCtx.id}`, 'PATCH', { properties: props });
+      const item = items.find(i => i.id === editCtx.id);
+      if (item) {
+        item.name = name;
+        item.priority = modalPrio || '⚪ まだ買わなくていい';
+        item.store = modalStore;
+        item.category = modalCat;
+        item.location = document.getElementById('f-location').value.trim();
+        item.pace = parseInt(document.getElementById('f-pace').value) || null;
+        item.memo = document.getElementById('f-memo').value.trim();
+        item.skip = document.getElementById('f-skip').checked;
+      }
+      showToast('保存しました');
+    } else {
+      const res = await notionAPI('pages', 'POST', {
+        parent: { database_id: DB_ID },
+        properties: props,
+      });
+      items.push(parseItem(res));
+      showToast('追加しました');
+    }
+    closeModal();
+    renderItems();
+    renderAlerts();
+  } catch(e) {
+    alert('保存に失敗しました: ' + e.message);
+    btn.disabled = false;
+    btn.textContent = editCtx ? '保存' : '追加する';
+  }
+}
+
+async function markBought(id) {
+  const btn = document.getElementById('mbought');
+  if (btn) { btn.disabled = true; btn.textContent = '更新中...'; }
+
+  const today = new Date().toISOString().split('T')[0];
+  try {
+    await notionAPI(`pages/${id}`, 'PATCH', {
+      properties: {
+        '優先度': { select: { name: '⚪ まだ買わなくていい' } },
+        '最終購入日': { date: { start: today } },
+        '買った？': { checkbox: true },
+      }
+    });
+    const item = items.find(i => i.id === id);
+    if (item) {
+      item.priority = '⚪ まだ買わなくていい';
+      item.lastBought = today;
+    }
+    closeModal();
+    renderItems();
+    renderAlerts();
+    showToast('✅ 購入済みにしました！');
+  } catch(e) {
+    alert('更新に失敗しました');
+    if (btn) { btn.disabled = false; btn.textContent = '✅ 買った！'; }
+  }
+}
+
+/* ===== UTILS ===== */
+function esc(s) {
+  return String(s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function showToast(msg) {
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2200);
+}
+
+/* ===== HEADER DATE ===== */
+function updateDate() {
+  const now = new Date();
+  const days = ['日', '月', '火', '水', '木', '金', '土'];
+  document.getElementById('header-date').textContent =
+    `${now.getMonth()+1}月${now.getDate()}日（${days[now.getDay()]}）`;
+}
+
+/* ===== INIT ===== */
+updateDate();
+loadItems();
+
+document.getElementById('modal-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('modal-overlay')) closeModal();
+});
+</script>
+</body>
+</html>
