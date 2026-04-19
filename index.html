@@ -413,6 +413,7 @@ async function notionAPI(path, method = 'GET', body = null) {
 }
 
 function parseItem(page) {
+  if (!page || !page.properties) return null;
   const p = page.properties;
   return {
     id: page.id,
@@ -436,7 +437,7 @@ async function loadItems() {
     const data = await notionAPI(`databases/${DB_ID}/query`, 'POST', {
       page_size: 100,
     });
-    items = (data.results || []).map(parseItem).filter(i => i.name);
+    items = (data.results || []).map(parseItem).filter(i => i && i.name);
     renderItems();
     renderAlerts();
   } catch(e) {
